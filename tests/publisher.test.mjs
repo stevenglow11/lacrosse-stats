@@ -70,17 +70,21 @@ test("file publisher is the default and the endpoint hook posts without a secret
     assert.equal(publishingMode(), "endpoint");
     let seen = null;
     const endpointResult = await publishResults(data, {
+      passcode: "test-only",
       fetchImpl: async (url, options) => {
         seen = { url, options };
-        return { ok: true };
+        return { ok: true, json: async () => ({ ok: true }) };
       },
     });
     assert.equal(endpointResult.mode, "endpoint");
     assert.equal(seen.url, "https://example.com/lacrosse-results");
     assert.equal(seen.options.method, "POST");
+    assert.match(seen.options.headers["Content-Type"], /text\/plain/);
     assert.equal(seen.options.headers.Authorization, undefined);
     assert.equal(seen.options.headers["X-Api-Key"], undefined);
-    assert.match(seen.options.body, /Summit/);
+    const posted = JSON.parse(seen.options.body);
+    assert.equal(posted.passcode, "test-only");
+    assert.match(JSON.stringify(posted.teams), /Summit/);
   } finally {
     RESULTS_CONFIG.submitUrl = previous;
   }

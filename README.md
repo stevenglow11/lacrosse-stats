@@ -66,23 +66,38 @@ Shooting percentage is goals divided by shots. Faceoff percentage is wins divide
 
 ## Publishing results
 
-Anyone can open the results page and see finished games, the season record, and leaders. Nothing is sent there until you submit it.
-
-1. Enter the game as usual.
-2. Tap **Submit results** on the live screen, or on that game in the Games list. That marks the game final and downloads a file named `results.json`. It includes every game you have marked final, for both teams.
-3. A game you do not want on the public page stays hidden. On the game, tap **Hidden from public page** to mark it final, or **On the public page** to hide it. Tap **Submit results** again so the file matches.
-4. On GitHub, open this repo.
-5. Click **Add file**, then **Upload files**.
-6. Drop `results.json` in. It replaces the copy in the repo.
-7. Commit the upload to the **main** branch.
-
-The public page updates in a minute or two:
+Anyone can open the results page and see finished games, the season record, and leaders:
 
 https://stevenglow11.github.io/lacrosse-stats/results.html
 
-The file has player names, numbers, and stats only. It does not include the private backup. There is no account and no password in the app.
+Nothing is sent there until you tap **Submit results**. The public page shows names, numbers, and stats. It does not get the private backup.
 
-Later, a one-tap submit to a web address can be turned on in `js/results-config.js` by setting `submitUrl`. The results page does not need to change. Leave that address empty for now. Do not put tokens or GitHub passwords in that file.
+### One tap, after the Google Sheet is set up
+
+The one-time setup is in `apps-script/SETUP.md`. Short version:
+
+1. Create a Google Sheet.
+2. **Extensions > Apps Script**, paste `apps-script/Code.gs`.
+3. **Project Settings > Script properties**, add `PASSCODE` and a code you make up. Do not put that code in GitHub.
+4. **Deploy > New deployment > Web app**. Execute as **Me**. Who has access: **Anyone**. Authorize it.
+5. Copy the URL that ends in `/exec`.
+6. Paste it into `js/results-config.js` as `submitUrl`, and commit that to `main`. Leave the passcode out of the file.
+7. On the phone, enter a game and tap **Submit results**. The first time, type the passcode. It stays on that phone.
+8. You should see **Submitted. This game is on the public results page.**
+
+To change the script later: **Deploy > Manage deployments > pencil > New version > Deploy**. The same `/exec` URL keeps working.
+
+To hide a game, tap **On the public page** until it says **Hidden from public page**.
+
+If you are offline, Submit keeps the game on the phone and sends it the next time you tap Submit while online. **Change results passcode** is on the Games screen. **Download results file** is there if Google cannot be reached.
+
+### If the web address is not set up yet
+
+1. Tap **Submit results**. That downloads `results.json` for every game marked final.
+2. On GitHub, open this repo, click **Add file**, then **Upload files**.
+3. Drop `results.json` in and commit it to **main**.
+
+The page updates in a minute or two.
 
 ## Back up, or move stats to another phone
 

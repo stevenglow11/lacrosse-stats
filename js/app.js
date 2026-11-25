@@ -49,9 +49,12 @@ import {
   versus,
   esc,
 } from "./logic.js";
-import { publishResults, publishingMode } from "./publisher.js";
+import { activeSubmitUrl } from "./results-config.js";
+import { buildPublicResults, postToResults, publishResults, publishingMode, submissionForGame } from "./publisher.js";
 
 const app = document.querySelector("#app");
+const PASSCODE_KEY = "laxstats.passcode";
+const QUEUE_KEY = "laxstats.publishQueue";
 
 let data = null;
 let ui = freshUi();
@@ -74,6 +77,7 @@ function freshUi() {
     edit: null,
     confirmBack: null,
     fatal: "",
+    pendingSubmitId: null,
   };
 }
 
@@ -96,6 +100,14 @@ function boot() {
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
     if (data && !data.theme) applyTheme();
   });
+  window.addEventListener("online", () => {
+    flushPublishQueue().then((result) => {
+      if (result.sent) toast("Sent saved results to the public page.");
+    }).catch(() => {});
+  });
+  flushPublishQueue().then((result) => {
+    if (result.sent) toast("Sent saved results to the public page.");
+  }).catch(() => {});
 }
 
 function applyTheme() {
@@ -270,13 +282,16 @@ function renderInstallBanner() {
 
 function renderDataPanel() {
   const endpoint = publishingMode() === "endpoint";
+  const passcode = readPasscode();
   return `<section class="panel">
     <h2>Public results</h2>
     <p>${endpoint
-      ? "Submit a finished game and it is sent to the public results page."
+      ? "Submit a finished game and it is sent to the public results page. If you are offline, it waits on this phone and sends later."
       : "Submit a finished game to download results.json. Upload that file on GitHub and the public page updates. Steps are in the README."}</p>
     <div class="stack">
       <button type="button" class="primary" data-action="publish-results">Publish results</button>
+      <button type="button" class="secondary" data-action="download-results">Download results file</button>
+      ${endpoint ? `<button type="button" class="secondary" data-action="change-passcode">${passcode ? "Change results passcode" : "Set results passcode"}</button>` : ""}
       <a class="secondary block" href="results.html">View public results</a>
     </div>
   </section>
@@ -399,7 +414,7 @@ function renderLive() {
     </section>
     <div class="publish-bar">
       <button type="button" class="primary block" data-action="submit-game" data-id="${esc(game.id)}">Submit results</button>
-      <p class="fine">${game.final ? "This game is marked final. " : ""}${publishingMode() === "endpoint" ? "Submit sends it to the public page." : "Submit downloads results.json for the public page."}</p>
+      <p class="fine">${game.final ? "This game is marked final. " : ""}${publishingMode() === "endpoint" ? "Submit sends it to the public page." : "Submit downloads results.json for the public page."}${readQueue().length ? ` ${readQueue().length} waiting to send.` : ""}</p>
     </div>
     <div class="nav-spacer"></div>
   </section>`;
@@ -595,7 +610,19 @@ function renderSheet() {
   if (!sheet) return "";
   let title = "";
   let body = "";
-  if (sheet.type === "game") {
+  if (sheet.type === "passcode") {
+    title = readPasscode() ? "Change results passcode" : "Results passcode";
+    body = `<form data-draft-form="passcode" novalidate>
+      <p class="fine">This is the code from the Google Sheet setup. It stays on this phone and is only sent to the results page.</p>
+      <label class="field"><span>Results passcode</span>
+        <input name="passcode" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+      </label>
+      <div class="sheet-actions">
+        <button type="button" class="secondary" data-action="close-sheet">Cancel</button>
+        <button type="submit" class="primary">Save passcode</button>
+      </div>
+    </form>`;
+  } else if (sheet.type === "game") {
     title = ui.draft?.gameId ? "Edit game" : "New game";
     body = renderGameForm();
   } else if (sheet.type === "player") {
@@ -736,6 +763,7 @@ function closeSheet() {
   ui.draft = null;
   ui.edit = null;
   ui.confirmBack = null;
+  ui.pendingSubmitId = null;
   render();
 }
 
@@ -1082,6 +1110,122 @@ function exportJson() {
   download("lacrosse-stats-backup.json", JSON.stringify(exportPayload(data), null, 2), "application/json");
 }
 
+function readPasscode() {
+  try { return localStorage.getItem(PASSCODE_KEY) || ""; } catch { return ""; }
+}
+
+function writePasscode(value) {
+  localStorage.setItem(PASSCODE_KEY, value);
+}
+
+function readQueue() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeQueue(items) {
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(items));
+}
+
+function queueId(body) {
+  return body?.game?.id || body?.id || "";
+}
+
+function enqueue(body) {
+  const id = queueId(body);
+  const next = readQueue().filter((item) => queueId(item) !== id);
+  next.push(body);
+  writeQueue(next);
+}
+
+async function sendQueued(body) {
+  const passcode = readPasscode();
+  if (!passcode) {
+    const error = new Error("Enter the results passcode.");
+    error.code = "need-passcode";
+    throw error;
+  }
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    const offline = new Error("offline");
+    offline.code = "offline";
+    throw offline;
+  }
+  return postToResults({ ...body, passcode });
+}
+
+async function flushPublishQueue() {
+  if (!activeSubmitUrl() || !data) return { ok: true, sent: 0 };
+  const queue = readQueue();
+  if (!queue.length) return { ok: true, sent: 0 };
+  const remain = [];
+  let sent = 0;
+  let failure = null;
+  for (const body of queue) {
+    if (failure) {
+      remain.push(body);
+      continue;
+    }
+    try {
+      await sendQueued(body);
+      sent += 1;
+    } catch (error) {
+      failure = error;
+      remain.push(body);
+    }
+  }
+  writeQueue(remain);
+  if (!failure) return { ok: true, sent };
+  return { ok: false, sent, code: failure.code || "rejected", message: failure.message };
+}
+
+function openPasscodeSheet(gameId) {
+  ui.pendingSubmitId = gameId || null;
+  ui.draft = { passcode: "" };
+  ui.sheet = { type: "passcode" };
+  focusSheet = true;
+  render();
+}
+
+function passcodeMessage(code, fallback) {
+  if (code === "offline") return "You're offline. This game is saved on the phone and will send the next time you tap Submit results while online.";
+  if (code === "setup") return "The Google Sheet does not have a PASSCODE saved yet. Add it in Apps Script Project Settings, then Submit again.";
+  if (code === "passcode" || code === "need-passcode") return "The passcode was not accepted. Tap Change results passcode and try again.";
+  return fallback || "Couldn't reach the results page. It is saved on this phone and will send the next time you tap Submit results. You can also download the results file.";
+}
+
+async function deliver(body, success) {
+  if (!activeSubmitUrl()) return { mode: "file" };
+  if (!readPasscode()) {
+    const error = new Error("Enter the results passcode.");
+    error.code = "need-passcode";
+    throw error;
+  }
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    enqueue(body);
+    const error = new Error("offline");
+    error.code = "offline";
+    throw error;
+  }
+  const flushed = await flushPublishQueue();
+  if (!flushed.ok) {
+    enqueue(body);
+    const error = new Error(flushed.message || "Couldn't send saved results.");
+    error.code = flushed.code || "rejected";
+    throw error;
+  }
+  try {
+    await sendQueued(body);
+  } catch (error) {
+    if (error.code !== "passcode" && error.code !== "need-passcode") enqueue(body);
+    throw error;
+  }
+  return { mode: "endpoint", message: success };
+}
+
 function toggleFinal(id) {
   const game = findGame(id);
   if (!game) return;
@@ -1089,12 +1233,30 @@ function toggleFinal(id) {
     toast("Enter the stats before marking this game final.");
     return;
   }
+  const hiding = game.final === true;
   game.final = !game.final;
   persist();
   render();
-  toast(game.final
-    ? "Marked final. Tap Submit results to put it on the public page."
-    : "Hidden from the public page. Tap Submit results to update what people see.");
+  if (!activeSubmitUrl()) {
+    toast(game.final
+      ? "Marked final. Tap Submit results to put it on the public page."
+      : "Hidden from the public page. Tap Submit results to update the file.");
+    return;
+  }
+  if (!readPasscode()) {
+    toast(game.final
+      ? "Marked final. Set the results passcode, then tap Submit results."
+      : "Hidden on this phone. Set the results passcode, then tap Submit results to update the public page.");
+    return;
+  }
+  const body = submissionForGame(data, game, hiding);
+  deliver(body).then(() => {
+    toast(hiding ? "Hidden on the public page." : "This game is on the public page.");
+  }).catch((error) => {
+    toast(passcodeMessage(error.code, hiding
+      ? "Couldn't hide it yet. It will retry the next time you tap Submit results."
+      : "Couldn't show it yet. Tap Submit results to try again."));
+  });
 }
 
 async function submitGame(id) {
@@ -1109,15 +1271,51 @@ async function submitGame(id) {
   }
   game.final = true;
   persist();
-  render();
-  try {
-    const result = await publishResults(data);
-    toast(result.mode === "endpoint"
-      ? "Results submitted. They will show on the public page shortly."
-      : "Downloaded results.json. Upload that file on GitHub to publish it.");
-  } catch (error) {
-    toast(error?.message || "Couldn't submit results.");
+  if (!activeSubmitUrl()) {
+    try {
+      const result = await publishResults(data);
+      toast(result.mode === "endpoint"
+        ? "Submitted. This game is on the public results page."
+        : "Downloaded results.json. Upload that file on GitHub to publish it.");
+    } catch (error) {
+      toast(error?.message || "Couldn't submit results.");
+    }
+    return;
   }
+  if (!readPasscode()) {
+    openPasscodeSheet(game.id);
+    return;
+  }
+  try {
+    await deliver(submissionForGame(data, game, false));
+    toast("Submitted. This game is on the public results page.");
+  } catch (error) {
+    if (error.code === "need-passcode" || error.code === "passcode") {
+      openPasscodeSheet(game.id);
+      toast("The passcode was not accepted. Enter it again.");
+      return;
+    }
+    toast(passcodeMessage(error.code));
+  }
+}
+
+function savePasscode() {
+  syncDraftFromDom();
+  const value = String(ui.draft?.passcode || "").trim();
+  if (!value) {
+    toast("Enter the passcode.");
+    return;
+  }
+  writePasscode(value);
+  const pending = ui.pendingSubmitId;
+  ui.sheet = null;
+  ui.draft = null;
+  ui.pendingSubmitId = null;
+  if (pending) {
+    submitGame(pending);
+    return;
+  }
+  toast("Passcode saved on this phone.");
 }
 
 async function publishMarked() {
@@ -1126,14 +1324,37 @@ async function publishMarked() {
     toast("Mark a game final, or tap Submit results after the game.");
     return;
   }
+  if (activeSubmitUrl() && !readPasscode()) {
+    openPasscodeSheet("");
+    toast("Enter the results passcode, then tap Publish results.");
+    return;
+  }
   try {
-    const result = await publishResults(data);
+    const result = await publishResults(data, {
+      passcode: readPasscode(),
+      hiddenIds: data.games.filter((game) => !game.final).map((game) => game.id),
+    });
     toast(result.mode === "endpoint"
-      ? "Results submitted. They will show on the public page shortly."
+      ? "Submitted. Final games are on the public results page."
       : "Downloaded results.json. Upload that file on GitHub to publish it.");
   } catch (error) {
-    toast(error?.message || "Couldn't submit results.");
+    if (activeSubmitUrl() && error.code !== "passcode" && error.code !== "need-passcode") {
+      const payload = buildPublicResults(data);
+      enqueue({ ...payload, hiddenIds: data.games.filter((game) => !game.final).map((game) => game.id) });
+    }
+    if (error.code === "passcode" || error.code === "need-passcode") {
+      openPasscodeSheet("");
+      toast("The passcode was not accepted. Enter it again.");
+      return;
+    }
+    toast(passcodeMessage(error.code));
   }
+}
+
+function downloadPublicFile() {
+  const payload = buildPublicResults(data);
+  download("results.json", `${JSON.stringify(payload, null, 2)}\n`, "application/json");
+  toast("Downloaded results.json. Upload it on GitHub if Submit cannot reach the results page.");
 }
 
 function pickBackup() {
@@ -1264,6 +1485,8 @@ function onClick(event) {
       case "submit-game": submitGame(id); break;
       case "toggle-final": toggleFinal(id); break;
       case "publish-results": publishMarked(); break;
+      case "download-results": downloadPublicFile(); break;
+      case "change-passcode": openPasscodeSheet(""); break;
       case "reset-save": resetSave(); break;
       default: break;
     }
@@ -1299,6 +1522,7 @@ function onSubmit(event) {
   try {
     if (event.target.dataset.draftForm === "game") saveGame();
     else if (event.target.dataset.draftForm === "player") savePlayer();
+    else if (event.target.dataset.draftForm === "passcode") savePasscode();
     else if (event.target.hasAttribute("data-edit-form")) saveEdit();
   } catch {
     toast("Couldn't save on this phone. Download a backup.");

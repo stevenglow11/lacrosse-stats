@@ -1,7 +1,7 @@
 // Read-only public results. This file only loads the JSON from RESULTS_CONFIG.
 // It does not submit, and it does not know whether the file was uploaded or posted.
 
-import { RESULTS_CONFIG } from "./results-config.js";
+import { RESULTS_CONFIG, activeSubmitUrl } from "./results-config.js";
 import { esc } from "./logic.js";
 
 const app = document.querySelector("#app");
@@ -28,14 +28,56 @@ let payload = null;
 let teamId = "";
 let gameId = "";
 
-function resultsRequestUrl() {
-  const base = new URL(RESULTS_CONFIG.resultsUrl || "./results.json", window.location.href);
+function withCacheBust(url) {
+  const base = new URL(url, window.location.href);
   base.searchParams.set("t", String(Date.now()));
-  return base.toString();
+  return base;
+}
+
+function loadJsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = `laxResults_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const script = document.createElement("script");
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("The public results took too long to load."));
+    }, 20000);
+    function cleanup() {
+      clearTimeout(timer);
+      try { delete window[cbName]; } catch { /* ignore */ }
+      script.remove();
+    }
+    window[cbName] = (data) => {
+      cleanup();
+      resolve(data);
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("Couldn't load the public results."));
+    };
+    const target = withCacheBust(url);
+    target.searchParams.set("callback", cbName);
+    script.src = target.toString();
+    document.head.appendChild(script);
+  });
 }
 
 async function loadResults() {
-  const response = await fetch(resultsRequestUrl(), { cache: "no-store" });
+  const submitUrl = activeSubmitUrl();
+  if (submitUrl) {
+    const target = new URL(submitUrl, window.location.href);
+    if (target.origin !== window.location.origin) {
+      const json = await loadJsonp(submitUrl);
+      if (!json || !Array.isArray(json.teams)) throw new Error("shape");
+      return json;
+    }
+    const response = await fetch(withCacheBust(submitUrl), { cache: "no-store" });
+    if (!response.ok) throw new Error(String(response.status));
+    const json = await response.json();
+    if (!json || !Array.isArray(json.teams)) throw new Error("shape");
+    return json;
+  }
+  const response = await fetch(withCacheBust(RESULTS_CONFIG.resultsUrl || "./results.json"), { cache: "no-store" });
   if (!response.ok) throw new Error(String(response.status));
   const json = await response.json();
   if (!json || !Array.isArray(json.teams)) throw new Error("shape");
