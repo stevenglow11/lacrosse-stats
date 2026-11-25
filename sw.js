@@ -1,10 +1,14 @@
-const CACHE = "lacrosse-stats-v1";
+const CACHE = "lacrosse-stats-v2";
 const ASSETS = [
   "./",
   "./index.html",
+  "./results.html",
   "./css/styles.css",
   "./js/app.js",
   "./js/logic.js",
+  "./js/publisher.js",
+  "./js/results.js",
+  "./js/results-config.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "updatedAt": null,
+  "teams": [
+    {
+      "id": "team91",
+      "name": "Team 91 2033",
+      "record": { "w": 0, "l": 0, "t": 0 },
+      "recordLabel": "0-0-0",
+      "goalsFor": 0,
+      "goalsAgainst": 0,
+      "games": [],
+      "leaders": []
+    },
+    {
+      "id": "brick56",
+      "name": "Brick 5/6",
+      "record": { "w": 0, "l": 0, "t": 0 },
+      "recordLabel": "0-0-0",
+      "goalsFor": 0,
+      "goalsAgainst": 0,
+      "games": [],
+      "leaders": []
+    }
+  ]
+}

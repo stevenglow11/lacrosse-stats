@@ -203,6 +203,17 @@ h2 { font-size: 20px; margin: 0; }
   white-space: nowrap;
 }
 .card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.card-actions .wide { grid-column: 1 / -1; }
+button.card { display: block; width: 100%; text-align: left; color: inherit; }
+.result-side { text-align: right; }
+.result-mark { margin: 4px 0 0; font-size: 22px; font-weight: 800; line-height: 1; }
+.result-mark.W { color: var(--green); }
+.result-mark.L { color: var(--opp); }
+.publish-bar { padding: 4px 10px 0; }
+.publish-bar .fine { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+a.secondary { display: flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
+.section-title { font-size: 18px; margin: 16px 0 8px; }
+.panel h3 { margin: 0 0 4px; font-size: 16px; }
 
 .roster { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
 .roster-row {
@@ -345,7 +356,7 @@ h2 { font-size: 20px; margin: 0; }
 }
 .stat-name { font-size: 15px; font-weight: 800; }
 .stat-sub { font-size: 10px; font-weight: 700; }
-.stat-goal { background: var(--green); color: var(--green-ink); border-color: var(--green); min-height: 58px; }
+.stat-goal { background: var(--green); color: var(--green-ink); border-color: var(--green); min-height: 48px; }
 .stat-goal .stat-name { font-size: 20px; }
 .stat-opp { background: var(--opp); color: var(--opp-ink); border-color: var(--opp); }
 .stat.is-armed { background: var(--ink); color: var(--bg); border-color: var(--ink); }

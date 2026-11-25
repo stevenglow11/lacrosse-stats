@@ -567,6 +567,7 @@ export function createGame(data, teamId, fields) {
     ...cleaned.value,
     quarter: "Q1",
     createdAt: Date.now(),
+    final: false,
     events: [],
   };
   data.games.push(game);
@@ -773,6 +774,7 @@ function normalizeGame(game, teamIds) {
     location: clip(game.location, 80),
     quarter,
     createdAt: Number.isFinite(Number(game.createdAt)) ? Number(game.createdAt) : Date.now(),
+    final: game.final === true,
     events,
   };
 }

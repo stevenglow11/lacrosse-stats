@@ -8,6 +8,10 @@ Live site (after GitHub Pages is turned on):
 
 **https://stevenglow11.github.io/lacrosse-stats/**
 
+Public results (anyone can open this, no login):
+
+**https://stevenglow11.github.io/lacrosse-stats/results.html**
+
 ## Turn on GitHub Pages
 
 1. Open this repo on GitHub.
@@ -19,7 +23,7 @@ Live site (after GitHub Pages is turned on):
 
 GitHub may take a minute or two. Then open https://stevenglow11.github.io/lacrosse-stats/
 
-The website itself is public. Game stats you enter are not uploaded. They stay in the browser on that phone. The built-in Team 91 roster is part of the app, so those names are in the project. Brick 5/6 starts with an empty roster.
+The website itself is public. Stats you enter stay on the phone until you tap **Submit results** and upload the file (see Publishing results below). The built-in Team 91 roster is part of the app, so those names are in the project. Brick 5/6 starts with an empty roster. The public page starts with no games.
 
 ## Add it to the iPhone home screen
 
@@ -59,6 +63,26 @@ Brick 5/6 has no players yet. Add them on the Roster tab. The app does not inven
 16. **Stats** shows season totals, per-game averages, stat leaders, and a game log for one player.
 
 Shooting percentage is goals divided by shots. Faceoff percentage is wins divided by faceoffs taken. Save percentage is saves divided by saves plus goals against.
+
+## Publishing results
+
+Anyone can open the results page and see finished games, the season record, and leaders. Nothing is sent there until you submit it.
+
+1. Enter the game as usual.
+2. Tap **Submit results** on the live screen, or on that game in the Games list. That marks the game final and downloads a file named `results.json`. It includes every game you have marked final, for both teams.
+3. A game you do not want on the public page stays hidden. On the game, tap **Hidden from public page** to mark it final, or **On the public page** to hide it. Tap **Submit results** again so the file matches.
+4. On GitHub, open this repo.
+5. Click **Add file**, then **Upload files**.
+6. Drop `results.json` in. It replaces the copy in the repo.
+7. Commit the upload to the **main** branch.
+
+The public page updates in a minute or two:
+
+https://stevenglow11.github.io/lacrosse-stats/results.html
+
+The file has player names, numbers, and stats only. It does not include the private backup. There is no account and no password in the app.
+
+Later, a one-tap submit to a web address can be turned on in `js/results-config.js` by setting `submitUrl`. The results page does not need to change. Leave that address empty for now. Do not put tokens or GitHub passwords in that file.
 
 ## Back up, or move stats to another phone
 

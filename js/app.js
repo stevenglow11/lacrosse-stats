@@ -49,6 +49,7 @@ import {
   versus,
   esc,
 } from "./logic.js";
+import { publishResults, publishingMode } from "./publisher.js";
 
 const app = document.querySelector("#app");
 
@@ -268,9 +269,20 @@ function renderInstallBanner() {
 }
 
 function renderDataPanel() {
+  const endpoint = publishingMode() === "endpoint";
   return `<section class="panel">
+    <h2>Public results</h2>
+    <p>${endpoint
+      ? "Submit a finished game and it is sent to the public results page."
+      : "Submit a finished game to download results.json. Upload that file on GitHub and the public page updates. Steps are in the README."}</p>
+    <div class="stack">
+      <button type="button" class="primary" data-action="publish-results">Publish results</button>
+      <a class="secondary block" href="results.html">View public results</a>
+    </div>
+  </section>
+  <section class="panel">
     <h2>Save a copy</h2>
-    <p>Stats stay on this phone. Download a backup before clearing browser data, or to move games onto another phone. CSV files open in Excel or Sheets.</p>
+    <p>Stats stay on this phone until you publish. Download a backup before clearing browser data, or to move games onto another phone. CSV files open in Excel or Sheets.</p>
     <div class="stack">
       <button type="button" class="primary" data-action="export-json">Download backup</button>
       <button type="button" class="secondary" data-action="import-json">Restore backup</button>
@@ -300,6 +312,8 @@ function renderGames() {
         <button type="button" class="secondary" data-action="open-box" data-id="${esc(game.id)}">Box score</button>
         <button type="button" class="secondary" data-action="edit-game" data-id="${esc(game.id)}" aria-label="Edit ${esc(versus(game))}">Edit</button>
         <button type="button" class="secondary" data-action="delete-game" data-id="${esc(game.id)}" aria-label="Delete ${esc(versus(game))}">Delete</button>
+        <button type="button" class="primary wide" data-action="submit-game" data-id="${esc(game.id)}">Submit results</button>
+        <button type="button" class="secondary wide" data-action="toggle-final" data-id="${esc(game.id)}" aria-pressed="${game.final ? "true" : "false"}">${game.final ? "On the public page" : "Hidden from public page"}</button>
       </div>
     </article>`;
   }).join("") : `<p class="empty-copy">No games yet. Start one when you get to the field.</p>`;
@@ -383,6 +397,10 @@ function renderLive() {
       </div>
       ${newest.length ? `<ul class="feed-list">${newest.slice(0, 2).map((event) => renderEvent(event, team)).join("")}</ul>` : `<p class="feed-empty">Stats you tap show up here.</p>`}
     </section>
+    <div class="publish-bar">
+      <button type="button" class="primary block" data-action="submit-game" data-id="${esc(game.id)}">Submit results</button>
+      <p class="fine">${game.final ? "This game is marked final. " : ""}${publishingMode() === "endpoint" ? "Submit sends it to the public page." : "Submit downloads results.json for the public page."}</p>
+    </div>
     <div class="nav-spacer"></div>
   </section>`;
 }
@@ -1064,6 +1082,60 @@ function exportJson() {
   download("lacrosse-stats-backup.json", JSON.stringify(exportPayload(data), null, 2), "application/json");
 }
 
+function toggleFinal(id) {
+  const game = findGame(id);
+  if (!game) return;
+  if (!game.final && !game.events.length) {
+    toast("Enter the stats before marking this game final.");
+    return;
+  }
+  game.final = !game.final;
+  persist();
+  render();
+  toast(game.final
+    ? "Marked final. Tap Submit results to put it on the public page."
+    : "Hidden from the public page. Tap Submit results to update what people see.");
+}
+
+async function submitGame(id) {
+  const game = (id && findGame(id)) || currentGame(data);
+  if (!game) {
+    toast("Open a game before submitting.");
+    return;
+  }
+  if (!game.events.length) {
+    toast("Enter the stats before submitting this game.");
+    return;
+  }
+  game.final = true;
+  persist();
+  render();
+  try {
+    const result = await publishResults(data);
+    toast(result.mode === "endpoint"
+      ? "Results submitted. They will show on the public page shortly."
+      : "Downloaded results.json. Upload that file on GitHub to publish it.");
+  } catch (error) {
+    toast(error?.message || "Couldn't submit results.");
+  }
+}
+
+async function publishMarked() {
+  const anyFinal = data.games.some((game) => game.final && game.events.length);
+  if (!anyFinal) {
+    toast("Mark a game final, or tap Submit results after the game.");
+    return;
+  }
+  try {
+    const result = await publishResults(data);
+    toast(result.mode === "endpoint"
+      ? "Results submitted. They will show on the public page shortly."
+      : "Downloaded results.json. Upload that file on GitHub to publish it.");
+  } catch (error) {
+    toast(error?.message || "Couldn't submit results.");
+  }
+}
+
 function pickBackup() {
   const input = document.createElement("input");
   input.type = "file";
@@ -1189,6 +1261,9 @@ function onClick(event) {
       case "import-json": pickBackup(); break;
       case "export-season": exportSeason(); break;
       case "export-game": exportGame(id); break;
+      case "submit-game": submitGame(id); break;
+      case "toggle-final": toggleFinal(id); break;
+      case "publish-results": publishMarked(); break;
       case "reset-save": resetSave(); break;
       default: break;
     }
