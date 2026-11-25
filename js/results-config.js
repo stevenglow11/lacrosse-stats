@@ -1,8 +1,7 @@
 // Publishing hook shared by the public page and the Submit button.
 //
-// submitUrl stays "" until Steve pastes the Google Apps Script /exec address.
-// While it is empty, Submit downloads results.json and the public page reads that file.
-// After it is set, Submit POSTs the public JSON there (Content-Type text/plain, no token)
+// submitUrl is set to the deployed Apps Script web app.
+// Submit POSTs the public JSON there (Content-Type text/plain, no token)
 // and results.html loads the same address with GET.
 //
 // Do not put the passcode, a token, or a GitHub password in this file.
@@ -10,7 +9,7 @@
 
 export const RESULTS_CONFIG = {
   resultsUrl: "./results.json",
-  submitUrl: "",
+  submitUrl: "https://script.google.com/macros/s/AKfycbzB7ToPy85DcKmLBrfJv1cNFHBSBBpu_OY-CyEaxL2W2dV5j5JRr0SJK6wcfCX94EXL/exec",
 };
 
 function isHttpUrl(value) {
@@ -33,13 +32,14 @@ function isLocalTestUrl(value) {
 }
 
 export function activeSubmitUrl() {
-  const configured = String(RESULTS_CONFIG.submitUrl || "").trim();
-  if (isHttpUrl(configured)) return configured;
   try {
     const injected = globalThis.window?.__LAX_SUBMIT_URL__;
+    if (injected === "") return "";
     if (typeof injected === "string" && isLocalTestUrl(injected.trim())) return injected.trim();
   } catch {
     /* no window while testing the publisher in Node */
   }
+  const configured = String(RESULTS_CONFIG.submitUrl || "").trim();
+  if (isHttpUrl(configured)) return configured;
   return "";
 }

@@ -76,6 +76,7 @@ async function main() {
     locale: "en-US",
     userAgent: iphone.userAgent,
   });
+  await context.addInitScript("window.__LAX_SUBMIT_URL__ = '';");
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
   try {

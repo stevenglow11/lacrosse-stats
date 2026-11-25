@@ -52,8 +52,10 @@ test("public results include only final games and no private fields", () => {
   assert.equal(brick.recordLabel, "1-0-0");
 });
 
-test("file publisher is the default and the endpoint hook posts without a secret", async () => {
-  assert.equal(RESULTS_CONFIG.submitUrl, "");
+test("file publisher still works and the endpoint hook posts without a secret", async () => {
+  const previous = RESULTS_CONFIG.submitUrl;
+  try {
+  RESULTS_CONFIG.submitUrl = "";
   assert.equal(publishingMode(), "file");
   const { data } = sample();
   let downloaded = "";
@@ -64,7 +66,6 @@ test("file publisher is the default and the endpoint hook posts without a secret
   assert.match(downloaded, /Summit/);
   assert.equal(downloaded.includes("Secret Scrimmage"), false);
 
-  const previous = RESULTS_CONFIG.submitUrl;
   RESULTS_CONFIG.submitUrl = "https://example.com/lacrosse-results";
   try {
     assert.equal(publishingMode(), "endpoint");
@@ -91,5 +92,7 @@ test("file publisher is the default and the endpoint hook posts without a secret
 
   RESULTS_CONFIG.submitUrl = "javascript:alert(1)";
   assert.equal(publishingMode(), "file");
-  RESULTS_CONFIG.submitUrl = previous;
+  } finally {
+    RESULTS_CONFIG.submitUrl = previous;
+  }
 });
