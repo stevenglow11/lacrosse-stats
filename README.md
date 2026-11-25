@@ -39,7 +39,7 @@ Use that home-screen icon each time. A home-screen app and a Safari tab can keep
 
 ## What's already filled in
 
-Team 91 2033 has the current roster, including players who don't have a number yet (Lucas, Bradly, Bill, and James Brunner). They can still be tapped during a game. Ecke is listed by last name only, and Luke is listed by first name only. Carter Glowacki is **#43**. Jack Donlan is **#33**. Duplicate numbers are allowed, and the roster screen warns you if two players share one.
+Team 91 2033 has the current roster, including players who don't have a number yet (Bradly, Bill, and James Brunner). They can still be tapped during a game. Ecke is listed by last name only, and Luke is listed by first name only. Lucas is **#13**. Carter Glowacki is **#43**. Jack Donlan is **#33**. Duplicate numbers are allowed, and the roster screen warns you if two players share one.
 
 Brick 5/6 has no players yet. Add them on the Roster tab. The app does not invent sample players.
 

@@ -1,4 +1,4 @@
-const CACHE = "lacrosse-stats-v5";
+const CACHE = "lacrosse-stats-v6";
 const ASSETS = [
   "./",
   "./index.html",

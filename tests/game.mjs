@@ -147,7 +147,7 @@ async function main() {
     await tapStat("Goal");
     await tapPlayer("Number 3, Weston Brandt");
     await tapStat("Opponent goal");
-    await tapPlayer("No number, Lucas");
+    await tapPlayer("Number 13, Lucas");
     await tapStat("Ground ball");
     await tapPlayer("Number 32, Jake Lopes");
     await tapStat("Shot");

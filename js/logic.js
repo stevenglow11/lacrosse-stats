@@ -683,7 +683,7 @@ export function seedTeams() {
         seedPlayer("p_doyle", "Gavin", "Doyle", "49"),
         seedPlayer("p_cruz", "Jose (Manny)", "Cruz", "81"),
         seedPlayer("p_keegan", "Keegan", "Glowacki", "99"),
-        seedPlayer("p_lukas", "Lucas", "", ""),
+        seedPlayer("p_lukas", "Lucas", "", "13"),
         seedPlayer("p_bradly", "Bradly", "", ""),
         seedPlayer("p_bill", "Bill", "", ""),
         seedPlayer("p_brunner", "James", "Brunner", ""),
@@ -753,6 +753,10 @@ export function applySeedRosterCorrections(teams) {
   const lucas = team.players.find((player) => player.id === "p_lukas");
   if (lucas && lucas.firstName === "Lukas") {
     lucas.firstName = "Lucas";
+    changed = true;
+  }
+  if (lucas && !normNumber(lucas.number)) {
+    lucas.number = "13";
     changed = true;
   }
   const carter = team.players.find((player) => player.id === "p_carter");
