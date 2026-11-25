@@ -52,13 +52,13 @@ test("seed roster names, blanks, and the shared number", () => {
   assert.equal(playerName(team.players.find((p) => p.id === "p_cruz")), "Jose (Manny) Cruz");
   assert.equal(playerName(team.players.find((p) => p.id === "p_bradly")), "Bradly");
   const blanks = team.players.filter((p) => !p.number).map(playerName).sort();
-  assert.deepEqual(blanks, ["Bill", "Bradly", "James Brunner", "Lukas"]);
-  assert.deepEqual(duplicateGroups(team.players), [
-    { number: "33", names: ["Carter Glowacki", "Jack Donlan"] },
-  ]);
+  assert.deepEqual(blanks, ["Bill", "Bradly", "James Brunner", "Lucas"]);
+  assert.equal(team.players.find((p) => p.id === "p_carter").number, "43");
+  assert.equal(team.players.find((p) => p.id === "p_donlan").number, "33");
+  assert.deepEqual(duplicateGroups(team.players), []);
   const sorted = sortPlayers(team.players).map(playerName);
   assert.equal(sorted[0], "Ecke");
-  assert.deepEqual(sorted.slice(-4), ["Bill", "Bradly", "James Brunner", "Lukas"]);
+  assert.deepEqual(sorted.slice(-4), ["Bill", "Bradly", "James Brunner", "Lucas"]);
   assert.equal(chipLabel(team.players.find((p) => p.id === "p_carter"), team.players), "Carter G.");
   assert.equal(chipLabel(team.players.find((p) => p.id === "p_keegan"), team.players), "Keegan G.");
   assert.equal(chipLabel(team.players.find((p) => p.id === "p_ecke"), team.players), "Ecke");
@@ -90,8 +90,9 @@ test("goals count as shots and shots on goal; misses and saves do not move the s
   assert.equal(row("Carter Glowacki").sh, 1);
   assert.equal(row("Carter Glowacki").sog, 1);
   assert.equal(row("Carter Glowacki").g, 0);
-  assert.equal(row("Lukas").gb, 1);
-  assert.equal(row("Lukas").number, "");
+  assert.equal(row("Lucas").gb, 1);
+  assert.equal(row("Lucas").number, "");
+  assert.equal(row("Carter Glowacki").number, "43");
   assert.equal(row("Michael Tricarico").pim, 2);
   assert.equal(box.totals.g, 1);
   assert.equal(box.totals.sh, 3);
@@ -185,6 +186,36 @@ test("backup round-trip keeps games and refuses junk", () => {
   assert.equal(parseBackup("{").error.includes("JSON"), true);
   assert.equal(Boolean(parseBackup('{"nope":true}').error), true);
   assert.equal(normalizeData({ teams: [], games: [] }), null);
+});
+
+test("an old saved roster is corrected without dropping games", () => {
+  const raw = defaultData();
+  const team = raw.teams.find((item) => item.id === "team91");
+  team.players.find((player) => player.id === "p_lukas").firstName = "Lukas";
+  team.players.find((player) => player.id === "p_lukas").number = "12";
+  team.players.find((player) => player.id === "p_carter").number = "33";
+  const { game } = createGame(raw, "team91", { opponent: "Summit", date: "2026-04-18", homeAway: "home", location: "Turf" });
+  addEvent(game, { type: "gb", player: team.players.find((player) => player.id === "p_lukas"), quarter: "Q1" });
+  const loaded = normalizeData(JSON.parse(JSON.stringify(raw)));
+  const next = loaded.teams.find((item) => item.id === "team91");
+  const lucas = next.players.find((player) => player.id === "p_lukas");
+  assert.equal(playerName(lucas), "Lucas");
+  assert.equal(lucas.number, "12");
+  assert.equal(next.players.find((player) => player.id === "p_carter").number, "43");
+  assert.equal(next.players.find((player) => player.id === "p_donlan").number, "33");
+  assert.equal(loaded.games.length, 1);
+  assert.equal(loaded.games[0].opponent, "Summit");
+  assert.equal(loaded.games[0].events.length, 1);
+  assert.equal(loaded.games[0].events[0].type, "gb");
+
+  const custom = defaultData();
+  const customTeam = custom.teams.find((item) => item.id === "team91");
+  customTeam.players.find((player) => player.id === "p_carter").number = "44";
+  customTeam.players.find((player) => player.id === "p_lukas").firstName = "Luc";
+  const kept = normalizeData(custom);
+  const keptTeam = kept.teams.find((item) => item.id === "team91");
+  assert.equal(keptTeam.players.find((player) => player.id === "p_carter").number, "44");
+  assert.equal(keptTeam.players.find((player) => player.id === "p_lukas").firstName, "Luc");
 });
 
 test("shot chart math is stable for an empty line and a caused turnover", () => {

@@ -105,15 +105,17 @@ async function main() {
 
     const names = await page.locator("[data-testid=roster-player]").evaluateAll((rows) => rows.map((row) => row.dataset.name));
     assert.equal(names.length, 25);
-    for (const name of ["Ecke", "Christopher Raichle", "Luke", "Lukas", "Bradly", "Bill", "James Brunner", "Jose (Manny) Cruz", "Russell Steenweg III"]) {
+    for (const name of ["Ecke", "Christopher Raichle", "Luke", "Lucas", "Bradly", "Bill", "James Brunner", "Jose (Manny) Cruz", "Russell Steenweg III"]) {
       assert.ok(names.includes(name), name);
     }
-    const banner = page.getByTestId("dup-banner");
-    await banner.waitFor();
-    assert.match(await banner.innerText(), /#33 is shared by Carter Glowacki and Jack Donlan/);
+    assert.equal(await page.getByTestId("dup-banner").count(), 0);
+    assert.equal((await page.locator("[data-name='Carter Glowacki'] .jersey").innerText()).trim(), "43");
+    assert.equal((await page.locator("[data-name='Jack Donlan'] .jersey").innerText()).trim(), "33");
 
     await page.getByRole("button", { name: "Edit Jack Donlan", exact: true }).click();
     const warning = page.locator("#number-warning");
+    await warning.waitFor({ state: "hidden" });
+    await page.locator("#player-number").fill("43");
     await warning.waitFor({ state: "visible" });
     assert.match(await warning.innerText(), /Carter Glowacki/);
     await page.locator("#player-number").fill("48");
@@ -145,11 +147,11 @@ async function main() {
     await tapStat("Goal");
     await tapPlayer("Number 3, Weston Brandt");
     await tapStat("Opponent goal");
-    await tapPlayer("No number, Lukas");
+    await tapPlayer("No number, Lucas");
     await tapStat("Ground ball");
     await tapPlayer("Number 32, Jake Lopes");
     await tapStat("Shot");
-    await tapPlayer("Number 33, Carter Glowacki");
+    await tapPlayer("Number 43, Carter Glowacki");
     await tapStat("Shot on goal");
     await tapPlayer("Number 1, Ecke");
     await tapStat("Faceoff win");
@@ -252,7 +254,7 @@ async function main() {
     await expectStat("Luke", "fol", "1");
     await expectStat("Weston Brandt", "a", "1");
     await expectStat("JP Fernandez-Castaneda", "a", "0");
-    await expectStat("Lukas", "gb", "1");
+    await expectStat("Lucas", "gb", "1");
     await expectStat("Jose (Manny) Cruz", "gb", "1");
     await expectStat("Thomas Heckler", "gb", "1");
     await expectStat("Gavin Doyle", "ct", "1");

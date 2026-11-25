@@ -678,12 +678,12 @@ export function seedTeams() {
         seedPlayer("p_luke", "Luke", "", "27"),
         seedPlayer("p_kowaliwskyj", "Grayson", "Kowaliwskyj", "29"),
         seedPlayer("p_lopes", "Jake", "Lopes", "32"),
-        seedPlayer("p_carter", "Carter", "Glowacki", "33"),
+        seedPlayer("p_carter", "Carter", "Glowacki", "43"),
         seedPlayer("p_donlan", "Jack", "Donlan", "33"),
         seedPlayer("p_doyle", "Gavin", "Doyle", "49"),
         seedPlayer("p_cruz", "Jose (Manny)", "Cruz", "81"),
         seedPlayer("p_keegan", "Keegan", "Glowacki", "99"),
-        seedPlayer("p_lukas", "Lukas", "", ""),
+        seedPlayer("p_lukas", "Lucas", "", ""),
         seedPlayer("p_bradly", "Bradly", "", ""),
         seedPlayer("p_bill", "Bill", "", ""),
         seedPlayer("p_brunner", "James", "Brunner", ""),
@@ -746,6 +746,23 @@ function normalizeEvent(event) {
   };
 }
 
+export function applySeedRosterCorrections(teams) {
+  const team = (teams || []).find((item) => item.id === "team91");
+  if (!team) return false;
+  let changed = false;
+  const lucas = team.players.find((player) => player.id === "p_lukas");
+  if (lucas && lucas.firstName === "Lukas") {
+    lucas.firstName = "Lucas";
+    changed = true;
+  }
+  const carter = team.players.find((player) => player.id === "p_carter");
+  if (carter && normNumber(carter.number) === "33") {
+    carter.number = "43";
+    changed = true;
+  }
+  return changed;
+}
+
 function normalizeTeam(team) {
   if (!team || typeof team !== "object") return null;
   const id = clip(team.id, 80);
@@ -785,6 +802,7 @@ export function normalizeData(input) {
   if (!Array.isArray(source.teams) || !Array.isArray(source.games)) return null;
   const teams = source.teams.map(normalizeTeam).filter(Boolean).slice(0, 12);
   if (!teams.length) return null;
+  applySeedRosterCorrections(teams);
   const teamIds = new Set(teams.map((team) => team.id));
   const games = source.games.map((game) => normalizeGame(game, teamIds)).filter(Boolean).slice(0, 500);
   const activeTeamId = teamIds.has(source.activeTeamId) ? source.activeTeamId : teams[0].id;
